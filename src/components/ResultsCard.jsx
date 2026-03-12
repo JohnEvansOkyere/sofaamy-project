@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { generateQuotePDF } from './PDFGenerator';
 
 const WHATSAPP_NUMBER = '233247958357';
@@ -28,13 +29,20 @@ function buildWhatsAppMessage(estimate) {
 }
 
 export default function ResultsCard({ estimate, onNewEstimate }) {
+  const [pdfSuccess, setPdfSuccess] = useState(false);
   if (!estimate || !estimate.lines?.length) return null;
 
   const whatsAppUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${buildWhatsAppMessage(estimate)}`;
 
+  const handleDownloadPDF = () => {
+    generateQuotePDF(estimate);
+    setPdfSuccess(true);
+    setTimeout(() => setPdfSuccess(false), 3000);
+  };
+
   return (
     <div className="mt-8 space-y-6">
-      <div className="rounded-xl border-2 border-primary/20 bg-white shadow-card overflow-hidden">
+      <div className="rounded-xl border-2 border-primary/20 bg-white shadow-card-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -83,29 +91,34 @@ export default function ResultsCard({ estimate, onNewEstimate }) {
         Indicative estimate only. Final pricing subject to site assessment and current stock availability. Prices in GHS.
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-4">
         <a
           href={whatsAppUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 py-3.5 px-6 rounded-lg bg-accent text-charcoal font-display font-bold text-center hover:bg-accent/90 transition-colors shadow-card"
+          className="block w-full py-4 px-6 rounded-xl bg-accent text-charcoal font-display font-bold text-lg text-center hover:bg-accent/90 transition-all shadow-lg hover:shadow-xl ring-2 ring-accent/30 hover:ring-accent/50"
         >
           💬 Send to Sofaamy on WhatsApp
         </a>
-        <button
-          type="button"
-          onClick={() => generateQuotePDF(estimate)}
-          className="py-3.5 px-6 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
-        >
-          📄 Download PDF Quote
-        </button>
-        <button
-          type="button"
-          onClick={onNewEstimate}
-          className="py-3.5 px-6 rounded-lg border-2 border-primary/40 text-primary font-medium hover:bg-primary/5 transition-colors"
-        >
-          🔄 New Estimate
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadPDF}
+            className="flex-1 py-3.5 px-6 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-all shadow-md"
+          >
+            📄 Download PDF Quote
+          </button>
+          <button
+            type="button"
+            onClick={onNewEstimate}
+            className="py-3.5 px-6 rounded-lg border-2 border-primary/40 text-primary font-medium hover:bg-primary/5 transition-colors"
+          >
+            🔄 New Estimate
+          </button>
+        </div>
+        {pdfSuccess && (
+          <p className="text-sm text-primary font-medium text-center">Quote downloaded successfully.</p>
+        )}
       </div>
     </div>
   );

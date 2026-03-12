@@ -8,9 +8,11 @@ import { hasOpenAIKey } from './utils/openaiClient';
 export default function App() {
   const [activeTab, setActiveTab] = useState('advisor');
   const [estimatorPrefill, setEstimatorPrefill] = useState(null);
+  const [estimatorKey, setEstimatorKey] = useState(0);
 
-  const handleUseRecommendation = (result) => {
-    setEstimatorPrefill(result);
+  const handleUseRecommendation = (payload) => {
+    setEstimatorPrefill(payload);
+    setEstimatorKey((k) => k + 1);
     setActiveTab('estimator');
   };
 
@@ -18,8 +20,8 @@ export default function App() {
     <div className="min-h-screen bg-background">
       <Header />
       {!hasOpenAIKey() && (
-        <div className="bg-accent/20 border-b border-accent/40 px-4 py-2 text-center text-sm text-charcoal">
-          Demo mode — AI features require API key. Manual entry still works.
+        <div className="bg-amber-50/90 border-b border-amber-200/60 px-4 py-2.5 text-center text-sm text-charcoal/90">
+          Demo mode — AI features require API key. Manual entry and calculations work without it.
         </div>
       )}
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
@@ -29,14 +31,15 @@ export default function App() {
         )}
         {activeTab === 'estimator' && (
           <MaterialEstimator
+            key={estimatorKey}
             prefill={estimatorPrefill}
             onClearPrefill={() => setEstimatorPrefill(null)}
           />
         )}
       </main>
-      <footer className="border-t border-primary/20 bg-white/60 py-6 px-4 text-center text-sm text-charcoal/70">
-        <p>Powered by Veloxa Technology Limited</p>
-        <p className="text-xs mt-1">Built for Sofaamy Co. Ltd. · Demo Version</p>
+      <footer className="border-t border-primary/20 bg-white/80 py-8 px-4 text-center">
+        <p className="text-sm font-medium text-charcoal/80">Powered by Veloxa Technology Limited</p>
+        <p className="text-xs mt-1 text-charcoal/60">Built for Sofaamy Co. Ltd. · Demo Version</p>
       </footer>
     </div>
   );

@@ -103,10 +103,10 @@ export default function GlassAdvisor({ onUseRecommendation }) {
                 key={p.id}
                 type="button"
                 onClick={() => setProjectType(p.id)}
-                className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all shadow-card hover:shadow-card-hover ${
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all duration-200 shadow-card hover:shadow-card-hover ${
                   projectType === p.id
-                    ? 'border-accent bg-accent/10'
-                    : 'border-primary/20 bg-white hover:border-primary/40'
+                    ? 'border-accent bg-accent/10 ring-2 ring-accent/20'
+                    : 'border-primary/20 bg-white hover:border-primary/40 hover:bg-primary/[0.02]'
                 }`}
               >
                 <span className="text-2xl">{p.icon}</span>
@@ -136,10 +136,10 @@ export default function GlassAdvisor({ onUseRecommendation }) {
                 key={l.id}
                 type="button"
                 onClick={() => setLocation(l.id)}
-                className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all shadow-card hover:shadow-card-hover ${
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all duration-200 shadow-card hover:shadow-card-hover ${
                   location === l.id
-                    ? 'border-accent bg-accent/10'
-                    : 'border-primary/20 bg-white hover:border-primary/40'
+                    ? 'border-accent bg-accent/10 ring-2 ring-accent/20'
+                    : 'border-primary/20 bg-white hover:border-primary/40 hover:bg-primary/[0.02]'
                 }`}
               >
                 <span className="text-2xl">{l.icon}</span>
@@ -178,10 +178,10 @@ export default function GlassAdvisor({ onUseRecommendation }) {
                 type="button"
                 onClick={() => toggleConcern(c.id)}
                 disabled={!concerns.includes(c.id) && concerns.length >= 2}
-                className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all shadow-card hover:shadow-card-hover disabled:opacity-60 ${
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all duration-200 shadow-card hover:shadow-card-hover disabled:opacity-60 ${
                   concerns.includes(c.id)
-                    ? 'border-accent bg-accent/10'
-                    : 'border-primary/20 bg-white hover:border-primary/40'
+                    ? 'border-accent bg-accent/10 ring-2 ring-accent/20'
+                    : 'border-primary/20 bg-white hover:border-primary/40 hover:bg-primary/[0.02]'
                 }`}
               >
                 <span className="text-2xl">{c.icon}</span>
@@ -231,7 +231,7 @@ export default function GlassAdvisor({ onUseRecommendation }) {
           )}
 
           <div className="space-y-4">
-            <div className="p-4 rounded-lg border-2 border-primary bg-primary/5 shadow-card">
+            <div className="p-5 rounded-xl border-2 border-primary bg-primary/5 shadow-card-lg">
               <h3 className="font-display font-medium text-primary mb-2">✅ Primary recommendation</h3>
               <p className="font-medium text-charcoal">
                 {result.primaryRecommendation?.product} — {result.primaryRecommendation?.thickness}
@@ -239,7 +239,7 @@ export default function GlassAdvisor({ onUseRecommendation }) {
               <p className="text-charcoal/80 text-sm mt-2">{result.primaryRecommendation?.reason}</p>
             </div>
             {result.alternativeRecommendation?.product && (
-              <div className="p-4 rounded-lg border-2 border-accent bg-accent/5 shadow-card">
+              <div className="p-5 rounded-xl border-2 border-accent bg-accent/5 shadow-card-lg">
                 <h3 className="font-display font-medium text-accent mb-2">🔄 Alternative option</h3>
                 <p className="font-medium text-charcoal">
                   {result.alternativeRecommendation.product} — {result.alternativeRecommendation.thickness}
@@ -248,14 +248,14 @@ export default function GlassAdvisor({ onUseRecommendation }) {
               </div>
             )}
             {result.profileRecommendation?.product && (
-              <div className="p-4 rounded-lg border-2 border-primary/30 bg-white shadow-card">
+              <div className="p-5 rounded-xl border-2 border-primary/30 bg-white shadow-card-lg">
                 <h3 className="font-display font-medium text-primary mb-2">🔩 Recommended profile</h3>
                 <p className="font-medium text-charcoal">{result.profileRecommendation.product}</p>
                 <p className="text-charcoal/80 text-sm mt-2">{result.profileRecommendation.reason}</p>
               </div>
             )}
             {result.importantNote && (
-              <div className="p-4 rounded-lg bg-background border border-primary/20">
+              <div className="p-5 rounded-xl bg-background border border-primary/20 shadow-sm">
                 <h3 className="font-medium text-primary mb-1">💡 Ghana-specific tip</h3>
                 <p className="text-charcoal/80 text-sm">{result.importantNote}</p>
               </div>
@@ -265,8 +265,49 @@ export default function GlassAdvisor({ onUseRecommendation }) {
           <div className="mt-8">
             <button
               type="button"
-              onClick={() => onUseRecommendation(result)}
-              className="w-full py-4 px-6 rounded-lg bg-accent text-charcoal font-display font-bold text-lg hover:bg-accent/90 transition-colors shadow-card"
+              onClick={() => {
+                const advisorToEstimatorMap = {
+                  shopfront: 'Shopfront',
+                  windows: 'Windows',
+                  partition: 'Partition',
+                  shower: 'Shower Enclosure',
+                  curtainwall: 'Curtain Wall',
+                  securitydoor: 'Security Door',
+                  balustrade: 'Balustrade',
+                };
+
+                const glassTypes = ['Clear Float', 'Tempered', 'Frosted', 'Tinted', 'Laminated', 'Reflective'];
+                const thicknessByType = {
+                  'Clear Float': ['4mm', '6mm'],
+                  'Tempered': ['8mm', '10mm', '12mm'],
+                  'Frosted': ['6mm'],
+                  'Tinted': ['6mm'],
+                  'Laminated': ['6mm'],
+                  'Reflective': ['6mm'],
+                };
+                const profileTypes = ['Standard Window Frame', 'Curtain Wall Profile', 'Casement Frame', 'Sliding Door Track'];
+
+                const primary = result.primaryRecommendation || {};
+                const profile = result.profileRecommendation || {};
+
+                const rawProduct = (primary.product || '').toLowerCase();
+                const rawThickness = (primary.thickness || '').replace(/\s/g, '').toLowerCase();
+                const rawProfile = (profile.product || '').toLowerCase();
+
+                const matchedGlass = glassTypes.find(g => rawProduct.includes(g.toLowerCase())) || '';
+                const thicknessNorm = rawThickness.endsWith('mm') ? rawThickness : rawThickness + 'mm';
+                const validThicknesses = thicknessByType[matchedGlass] || [];
+                const matchedThickness = validThicknesses.includes(thicknessNorm) ? thicknessNorm : (validThicknesses[0] || '');
+                const matchedProfile = profileTypes.find(p => rawProfile.includes(p.toLowerCase())) || 'None';
+
+                onUseRecommendation({
+                  projectType: advisorToEstimatorMap[projectType] || '',
+                  glassType: matchedGlass,
+                  glassThickness: matchedThickness,
+                  profileType: matchedProfile,
+                });
+              }}
+              className="w-full py-4 px-6 rounded-xl bg-accent text-charcoal font-display font-bold text-lg hover:bg-accent/90 transition-all shadow-lg hover:shadow-xl"
             >
               Use This Recommendation → Get My Cost Estimate
             </button>

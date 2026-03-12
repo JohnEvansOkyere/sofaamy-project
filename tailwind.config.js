@@ -19,6 +19,7 @@ export default {
       boxShadow: {
         card: '0 4px 20px rgba(27, 58, 45, 0.08)',
         'card-hover': '0 8px 30px rgba(27, 58, 45, 0.12)',
+        'card-lg': '0 10px 40px rgba(27, 58, 45, 0.1)',
       },
     },
   },

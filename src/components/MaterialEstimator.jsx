@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react';
-import { parseProjectDescription, hasOpenAIKey } from '../utils/openaiClient';
-import { calculateEstimate } from '../utils/calculations';
+import { useState } from 'react';
+import { parseProjectDescription } from '../utils/openaiClient';
+import { calculateEstimate, GLASS_THICKNESSES_BY_TYPE } from '../utils/calculations';
 import ResultsCard from './ResultsCard';
 
 const PROJECT_TYPES = [
   'Shopfront', 'Windows', 'Partition', 'Balustrade', 'Security Door', 'Curtain Wall', 'Shower Enclosure',
 ];
 const GLASS_TYPES = ['Clear Float', 'Tempered', 'Frosted', 'Tinted', 'Laminated', 'Reflective'];
-const GLASS_THICKNESSES = ['4mm', '6mm', '8mm', '10mm', '12mm'];
 const PROFILE_TYPES = [
   'None', 'Standard Window Frame', 'Curtain Wall Profile', 'Casement Frame', 'Sliding Door Track',
 ];
@@ -28,42 +27,34 @@ const initialForm = {
 
 function normalizeGlassType(name) {
   if (!name) return '';
-  const n = name.toLowerCase();
-  return GLASS_TYPES.find((g) => g.toLowerCase() === n || n.includes(g.toLowerCase())) || name;
+  const n = String(name).toLowerCase();
+  return GLASS_TYPES.find((g) => n === g.toLowerCase() || n.includes(g.toLowerCase())) || '';
 }
 
-function normalizeThickness(t) {
-  if (!t) return '';
-  const s = String(t).replace(/\s/g, '');
-  return GLASS_THICKNESSES.find((x) => x === s || s === x.replace('mm', '')) || t;
+function normalizeThickness(t, glassType) {
+  if (t == null || t === '') return '';
+  const s = String(t).replace(/\s/g, '').toLowerCase();
+  const withMm = s.endsWith('mm') ? s : `${s}mm`;
+  const valid = (glassType && GLASS_THICKNESSES_BY_TYPE[glassType]) || [];
+  return valid.includes(withMm) ? withMm : valid[0] || '';
 }
 
 export default function MaterialEstimator({ prefill, onClearPrefill }) {
-  const [mode, setMode] = useState('describe'); // 'describe' | 'manual'
+  const [mode, setMode] = useState(prefill ? 'manual' : 'describe');
   const [describeText, setDescribeText] = useState('');
-  const [form, setForm] = useState({ ...initialForm });
+  const [form, setForm] = useState({
+    ...initialForm,
+    ...(prefill ? {
+      projectType: prefill.projectType || '',
+      glassType: prefill.glassType || '',
+      glassThickness: prefill.glassThickness || '',
+      profileType: prefill.profileType || 'None',
+    } : {}),
+  });
   const [parseLoading, setParseLoading] = useState(false);
   const [parseError, setParseError] = useState(null);
   const [parsedSummary, setParsedSummary] = useState(null);
   const [estimate, setEstimate] = useState(null);
-
-  // Prefill from Glass Advisor
-  useEffect(() => {
-    if (!prefill) return;
-    const primary = prefill.primaryRecommendation;
-    const profile = prefill.profileRecommendation;
-    if (primary?.product) {
-      setForm((f) => ({
-        ...f,
-        glassType: normalizeGlassType(primary.product),
-        glassThickness: normalizeThickness(primary.thickness),
-        profileType: profile?.product && PROFILE_TYPES.some((p) => (profile.product || '').toLowerCase().includes(p.toLowerCase()))
-          ? PROFILE_TYPES.find((p) => (profile.product || '').toLowerCase().includes(p.toLowerCase()))
-          : (profile?.product || 'None'),
-      }));
-    }
-    setMode('manual');
-  }, [prefill]);
 
   const handleParse = async () => {
     if (!describeText.trim()) return;
@@ -89,7 +80,7 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
         width: Number(data.width) || f.width,
         height: Number(data.height) || f.height,
         glassType: normalizeGlassType(data.glassType) || f.glassType,
-        glassThickness: normalizeThickness(data.glassThickness) || f.glassThickness,
+        glassThickness: normalizeThickness(data.glassThickness, normalizeGlassType(data.glassType) || f.glassType) || f.glassThickness,
         profileType: data.profileType || 'None',
         includeAlucobond: !!data.includeAlucobond,
         alucobondArea: Number(data.alucobondArea) || 0,
@@ -103,13 +94,45 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
     }
   };
 
+  const [validationError, setValidationError] = useState(null);
+
   const handleCalculate = () => {
+    setValidationError(null);
+    const hasGlass = form.glassType && form.glassThickness;
+    const hasDimensions = (form.width || 0) > 0 && (form.height || 0) > 0;
+
+    if (hasGlass && !hasDimensions) {
+      setValidationError('Please enter width (m) and height (m) to calculate your estimate.');
+      return;
+    }
+    if (form.includeAlucobond && (!form.alucobondArea || form.alucobondArea <= 0)) {
+      setValidationError('Please enter Alucobond area (sqm).');
+      return;
+    }
+    if (form.includeSecurityDoor && (!form.securityDoorQuantity || form.securityDoorQuantity <= 0)) {
+      setValidationError('Please enter security door quantity.');
+      return;
+    }
+
     const result = calculateEstimate(form);
+    if (!result.lines?.length) {
+      setValidationError('Please complete the required fields: glass type, thickness, width, and height.');
+      return;
+    }
     setEstimate(result);
   };
 
   const updateForm = (key, value) => {
-    setForm((f) => ({ ...f, [key]: value }));
+    setForm((f) => {
+      const next = { ...f, [key]: value };
+      if (key === 'glassType') {
+        const validThicknesses = GLASS_THICKNESSES_BY_TYPE[value] || [];
+        if (!validThicknesses.includes(next.glassThickness)) {
+          next.glassThickness = validThicknesses[0] || '';
+        }
+      }
+      return next;
+    });
     setEstimate(null);
   };
 
@@ -124,22 +147,24 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
 
   return (
     <div className="tab-content max-w-3xl mx-auto px-4 py-6 sm:py-8">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6 p-3 rounded-xl bg-white border border-primary/10 shadow-sm">
         <span className="text-sm font-medium text-charcoal/80">Input mode:</span>
-        <button
-          type="button"
-          onClick={() => { setMode('describe'); setEstimate(null); }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'describe' ? 'bg-primary text-white' : 'bg-white border border-primary/30 text-primary'}`}
-        >
-          Describe Your Project
-        </button>
-        <button
-          type="button"
-          onClick={() => { setMode('manual'); setEstimate(null); }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === 'manual' ? 'bg-primary text-white' : 'bg-white border border-primary/30 text-primary'}`}
-        >
-          Manual Entry
-        </button>
+        <div className="flex rounded-lg border-2 border-primary/20 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => { setMode('describe'); setEstimate(null); }}
+            className={`px-4 py-2.5 text-sm font-medium transition-all ${mode === 'describe' ? 'bg-primary text-white' : 'bg-background text-charcoal/80 hover:bg-primary/5'}`}
+          >
+            Describe Your Project
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('manual'); setEstimate(null); }}
+            className={`px-4 py-2.5 text-sm font-medium transition-all ${mode === 'manual' ? 'bg-primary text-white' : 'bg-background text-charcoal/80 hover:bg-primary/5'}`}
+          >
+            Manual Entry
+          </button>
+        </div>
       </div>
 
       {mode === 'describe' && (
@@ -172,10 +197,25 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
             </div>
           )}
           {parsedSummary && (
-            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 text-sm text-charcoal">
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm text-charcoal shadow-sm">
               <strong>We understood your project as:</strong> {parsedSummary}
             </div>
           )}
+        </div>
+      )}
+
+      {prefill && (
+        <div className="mb-6 p-4 rounded-xl bg-primary/5 border border-primary/20 shadow-sm">
+          <p className="text-sm text-charcoal font-medium">Pre-filled from Glass Advisor:</p>
+          <p className="text-sm text-charcoal/80 mt-1">
+            {[
+              prefill.projectType && `Project: ${prefill.projectType}`,
+              prefill.glassType && `Glass: ${prefill.glassType}`,
+              prefill.glassThickness && `Thickness: ${prefill.glassThickness}`,
+              prefill.profileType && prefill.profileType !== 'None' && `Profile: ${prefill.profileType}`,
+            ].filter(Boolean).join(' · ') || 'No details detected'}
+          </p>
+          <p className="text-xs text-charcoal/60 mt-1">Fill in the remaining fields below (quantity, dimensions) and calculate.</p>
         </div>
       )}
 
@@ -186,7 +226,7 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
             <select
               value={form.projectType}
               onChange={(e) => updateForm('projectType', e.target.value)}
-              className="mt-1 w-full px-4 py-2 rounded-lg border-2 border-primary/20 bg-white focus:border-accent outline-none"
+              className="mt-1 w-full px-4 py-2.5 rounded-lg border-2 border-primary/20 bg-white focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-shadow"
             >
               <option value="">Select</option>
               {PROJECT_TYPES.map((p) => (
@@ -201,7 +241,7 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
               min={1}
               value={form.quantity}
               onChange={(e) => updateForm('quantity', Number(e.target.value) || 0)}
-              className="mt-1 w-full px-4 py-2 rounded-lg border-2 border-primary/20 bg-white focus:border-accent outline-none"
+              className="mt-1 w-full px-4 py-2.5 rounded-lg border-2 border-primary/20 bg-white focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-shadow"
             />
           </label>
         </div>
@@ -214,7 +254,7 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
               step={0.1}
               value={form.width || ''}
               onChange={(e) => updateForm('width', Number(e.target.value) || 0)}
-              className="mt-1 w-full px-4 py-2 rounded-lg border-2 border-primary/20 bg-white focus:border-accent outline-none"
+              className="mt-1 w-full px-4 py-2.5 rounded-lg border-2 border-primary/20 bg-white focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-shadow"
             />
           </label>
           <label className="block">
@@ -225,7 +265,7 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
               step={0.1}
               value={form.height || ''}
               onChange={(e) => updateForm('height', Number(e.target.value) || 0)}
-              className="mt-1 w-full px-4 py-2 rounded-lg border-2 border-primary/20 bg-white focus:border-accent outline-none"
+              className="mt-1 w-full px-4 py-2.5 rounded-lg border-2 border-primary/20 bg-white focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-shadow"
             />
           </label>
         </div>
@@ -235,7 +275,7 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
             <select
               value={form.glassType}
               onChange={(e) => updateForm('glassType', e.target.value)}
-              className="mt-1 w-full px-4 py-2 rounded-lg border-2 border-primary/20 bg-white focus:border-accent outline-none"
+              className="mt-1 w-full px-4 py-2.5 rounded-lg border-2 border-primary/20 bg-white focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-shadow"
             >
               <option value="">Select</option>
               {GLASS_TYPES.map((g) => (
@@ -248,10 +288,10 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
             <select
               value={form.glassThickness}
               onChange={(e) => updateForm('glassThickness', e.target.value)}
-              className="mt-1 w-full px-4 py-2 rounded-lg border-2 border-primary/20 bg-white focus:border-accent outline-none"
+              className="mt-1 w-full px-4 py-2.5 rounded-lg border-2 border-primary/20 bg-white focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-shadow"
             >
-              <option value="">Select</option>
-              {GLASS_THICKNESSES.map((t) => (
+              <option value="">Select glass type first</option>
+              {(form.glassType ? (GLASS_THICKNESSES_BY_TYPE[form.glassType] || []) : []).map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
@@ -262,7 +302,7 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
           <select
             value={form.profileType}
             onChange={(e) => updateForm('profileType', e.target.value)}
-            className="mt-1 w-full px-4 py-2 rounded-lg border-2 border-primary/20 bg-white focus:border-accent outline-none"
+            className="mt-1 w-full px-4 py-2.5 rounded-lg border-2 border-primary/20 bg-white focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-shadow"
           >
             {PROFILE_TYPES.map((p) => (
               <option key={p} value={p}>{p}</option>
@@ -316,11 +356,17 @@ export default function MaterialEstimator({ prefill, onClearPrefill }) {
         )}
       </div>
 
+      {validationError && (
+        <div className="mt-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          {validationError}
+        </div>
+      )}
+
       <div className="mt-6">
         <button
           type="button"
           onClick={handleCalculate}
-          className="px-6 py-3 rounded-lg bg-primary text-white font-medium hover:bg-primary/90"
+          className="px-6 py-3 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
         >
           Calculate estimate
         </button>

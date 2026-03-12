@@ -9,6 +9,16 @@ export const GLASS_PRICES = {
   'Reflective': { '6mm': 200 },
 };
 
+/** Thickness options per glass type (only combinations with valid pricing) */
+export const GLASS_THICKNESSES_BY_TYPE = {
+  'Clear Float': ['4mm', '6mm'],
+  'Tempered': ['8mm', '10mm', '12mm'],
+  'Frosted': ['6mm'],
+  'Tinted': ['6mm'],
+  'Laminated': ['6mm'],
+  'Reflective': ['6mm'],
+};
+
 export const PROFILE_PRICES = {
   'None': 0,
   'Standard Window Frame': 45,

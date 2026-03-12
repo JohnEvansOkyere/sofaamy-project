@@ -5,7 +5,7 @@ export default function TabNav({ activeTab, onTabChange }) {
   ];
 
   return (
-    <nav className="flex border-b border-primary/20 bg-white/80 backdrop-blur sticky top-0 z-10 shadow-sm">
+    <nav className="flex border-b border-primary/20 bg-white/95 backdrop-blur-md sticky top-0 z-10 shadow-sm">
       {tabs.map((tab) => (
         <button
           key={tab.id}
